@@ -1,0 +1,35 @@
+name: Seed Remote D1 Database
+
+# Manually triggered, one-time action to seed the production/remote D1
+# database with the initial users defined in drizzle/seed/seed.sql.
+# Run this from the Actions tab when the remote database needs seeding
+# (e.g. after the first deployment). Re-running will attempt to insert
+# the same rows again, which will fail on the users' unique email
+# constraint if they already exist.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Seed remote D1 database
+        run: npm run db:seed:remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
