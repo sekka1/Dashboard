@@ -16,7 +16,10 @@ export default defineWorkersConfig(async () => {
         workers: {
           wrangler: { configPath: "./wrangler.jsonc" },
           miniflare: {
-            bindings: { TEST_MIGRATIONS: migrations },
+            bindings: {
+              TEST_MIGRATIONS: migrations,
+              SENSOR_API_TOKEN: "test-sensor-api-token",
+            },
           },
         },
       },

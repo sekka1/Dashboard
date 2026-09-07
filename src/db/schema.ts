@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -22,29 +22,26 @@ export const users = sqliteTable("users", {
     .$defaultFn(() => new Date()),
 });
 
-export const referrals = sqliteTable("referrals", {
-  id: text("id").primaryKey(),
-  partnerId: text("partner_id")
-    .notNull()
-    .references(() => users.id),
-  clientName: text("client_name").notNull(),
-  clientEmail: text("client_email"),
-  clientPhone: text("client_phone"),
-  notes: text("notes"),
-  status: text("status", {
-    enum: ["submitted", "contacted", "in_progress", "closed_won", "closed_lost"],
-  })
-    .notNull()
-    .default("submitted"),
-  dealValueCents: integer("deal_value_cents"),
-  estimatedCommissionCents: integer("estimated_commission_cents"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+// Time-series readings posted by the garden's ESP32 sensors via the public
+// /data endpoint (authenticated with SENSOR_API_TOKEN, not user sessions).
+export const sensorReadings = sqliteTable(
+  "sensor_readings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    deviceId: text("device_id").notNull(),
+    temperature: real("temperature").notNull(),
+    humidity: real("humidity").notNull(),
+    batteryVoltage: real("battery_voltage"),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    // Composite index so "latest reading per device" and time-range queries
+    // scoped to a device can use the index instead of a full table scan.
+    index("idx_sensor_readings_device_time").on(table.deviceId, table.createdAt),
+  ],
+);
 
 // Better Auth requires these auxiliary tables for session/account management.
 export const sessions = sqliteTable("sessions", {
@@ -92,5 +89,5 @@ export const verifications = sqliteTable("verifications", {
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-export type Referral = typeof referrals.$inferSelect;
-export type NewReferral = typeof referrals.$inferInsert;
+export type SensorReading = typeof sensorReadings.$inferSelect;
+export type NewSensorReading = typeof sensorReadings.$inferInsert;

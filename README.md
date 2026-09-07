@@ -1,9 +1,9 @@
 # Boiler-plate-webapp-cloudflare
 
-A full-stack boilerplate web application built to run entirely on the Cloudflare
-Workers platform. It is implemented as a "Dashboard" that lets
-**partners** submit and track client referrals while **admins** manage users and
-review all referrals.
+A full-stack Cloudflare Workers web application used as a home **Garden
+dashboard**: garden sensors (ESP32, etc.) HTTPS POST temperature/humidity
+readings to a public `/data` endpoint, and signed-in users view that data on
+a dashboard. **Admins** additionally manage user accounts.
 
 ## Tech Stack
 
@@ -23,19 +23,18 @@ review all referrals.
 - Email/password sign up and sign in (`better-auth`)
 - Role-based access control (RBAC) with `admin` and `partner` roles
 - User account status flow: `pending` → `active` / `deactivated`, with a
-  "pending approval" page shown to new partners
-- Partner dashboard for submitting and tracking referrals
-  (client name/email/phone, notes, status, deal value, estimated commission)
-- Admin dashboard for managing users and reviewing all referrals
-- Backend API (Hono) routes for referrals (`/api/referrals`) and admin user
-  management (`/api/admin/users`), enforcing that partners can only access
-  their own referrals
-- Database schema and migrations (Drizzle) for `users`, `referrals`,
+  "pending approval" page shown to new users
+- Garden dashboard showing the latest sensor readings (temperature, humidity,
+  battery voltage) reported by garden sensor devices
+- Admin dashboard for managing users
+- Public, token-authenticated `POST /data` endpoint that garden sensors call
+  to submit readings, plus an authenticated `GET /api/sensors/readings` API
+  and admin user management (`/api/admin/users`)
+- Database schema and migrations (Drizzle) for `users`, `sensor_readings`,
   `sessions`, `accounts`, and `verifications` tables
 - Security hardening: secure HTTP headers, CORS restricted to the configured
   origin, and Zod-based input validation
-- Unit tests for backend routes and end-to-end tests for auth, admin, and
-  partner flows
+- Unit tests for backend routes and end-to-end tests for auth and admin flows
 
 ## Project Structure
 
@@ -79,7 +78,9 @@ npm run deploy
 
 Configure the D1 database binding and `BETTER_AUTH_URL` in `wrangler.jsonc`,
 and set the `BETTER_AUTH_SECRET` secret (e.g. via `wrangler secret put
-BETTER_AUTH_SECRET`) before deploying.
+BETTER_AUTH_SECRET`) before deploying. Also set the `SENSOR_API_TOKEN` secret
+(`wrangler secret put SENSOR_API_TOKEN`) — garden sensors must send this
+value in the `x-sensor-api-token` header on every `POST /data` request.
 
 `BETTER_AUTH_URL` **must** match the exact origin your app is served from in
 production (e.g. `https://your-worker-name.your-subdomain.workers.dev` or a
@@ -169,10 +170,9 @@ through two interfaces only: the live web app and GitHub Issues.
 ### 1) Day-to-day operations (zero code / zero GitHub)
 
 - **Partners**: Bookmark
-  `https://dashboard.garlandk.workers.dev`, log in, and use
-  forms/tables to submit and view referrals.
-- **Owner/Admin**: Log in to the same URL, open `/admin`, and approve users or
-  update referral statuses directly in the UI.
+  `https://dashboard.garlandk.workers.dev`, log in, and view the garden
+  sensor dashboard.
+- **Owner/Admin**: Log in to the same URL, open `/admin`, and approve users.
 
 ### 2) Requesting changes (plain-English issue to deployment loop)
 
@@ -189,7 +189,7 @@ Step-by-step:
 
 1. **Submit a request (GitHub Issue)**  
    Example:  
-   > "Add a 'Phone Number' column to the Admin referral table so I can call clients directly from the table."
+   > "Add a battery-voltage sparkline to the Garden dashboard so I can see trends over time."
 2. **AI agent implements it**  
    A cloud agent (for example GitHub Copilot Workspace, Devin, or an
    issue-triggered bot) reads the issue + `AGENT.md`, writes code, and opens a

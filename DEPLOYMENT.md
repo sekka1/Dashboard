@@ -94,6 +94,7 @@ authenticate with Cloudflare:
 | ------------------------ | --------------------------------------------------------- |
 | `CLOUDFLARE_API_TOKEN`   | API token with Workers Scripts and D1 edit permissions.   |
 | `CLOUDFLARE_ACCOUNT_ID`  | Your Cloudflare account ID.                               |
+| `SENSOR_API_TOKEN`       | Shared secret garden sensors must send to `POST /data`. The deploy workflow pushes this to the Worker via `wrangler secret put` on every deploy. |
 
 Once these secrets are configured, merging to `main` will automatically run
 database migrations and deploy the latest code to Cloudflare.

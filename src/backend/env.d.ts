@@ -4,6 +4,12 @@ export interface Env {
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
   /**
+   * Shared secret that garden sensor devices must send with every request to
+   * the public POST /data ingestion endpoint. Not used for the regular
+   * dashboard session auth.
+   */
+  SENSOR_API_TOKEN: string;
+  /**
    * Optional comma-separated list of additional origins that should be
    * trusted by Better Auth (e.g. a custom domain or a *.workers.dev URL
    * that differs from BETTER_AUTH_URL). Example:
