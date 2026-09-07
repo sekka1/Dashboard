@@ -1,0 +1,41 @@
+name: "✨ Request a New Feature or Change"
+description: "Use this to request new features, text changes, or design updates."
+title: "[Feature]: "
+labels: ["enhancement", "ai-task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 👋 Request a New Feature
+        Tell the AI agent what you would like to add or change in the portal.
+
+  - type: textarea
+    id: what_to_do
+    attributes:
+      label: "What do you want to add or change?"
+      description: "Describe what you want to see. Plain English is great!"
+      placeholder: "e.g., I want to add a 'Phone Number' column to the Admin referral table so I can call clients directly from the portal."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where_in_app
+    attributes:
+      label: "Where should this change happen?"
+      options:
+        - "Partner Dashboard (What agents see)"
+        - "Admin Dashboard (What you see)"
+        - "Login / Registration Page"
+        - "Email / Notifications"
+        - "Other / Not Sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: why_needed
+    attributes:
+      label: "Why do you need this change? (Optional)"
+      description: "Any extra context that helps the AI understand your goal."
+      placeholder: "e.g., Right now I have to open a separate contacts list to find their phone number, which slows me down."
+    validations:
+      required: false

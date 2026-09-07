@@ -1,0 +1,39 @@
+name: "🐛 Report a Problem or Bug"
+description: "Use this if something in the app is broken or not working as expected."
+title: "[Bug]: "
+labels: ["bug", "ai-task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🐛 Report an Issue
+        Describe what went wrong so the AI agent can fix it for you.
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: "What went wrong?"
+      description: "Describe what happened and what you expected to happen instead."
+      placeholder: "e.g., I clicked the 'Approve User' button on the Admin page, but nothing happened and the user stays in 'Pending' status."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: "How can the AI repeat this issue?"
+      description: "List the simple steps you took right before it broke."
+      placeholder: |
+        1. Go to Admin Dashboard
+        2. Click on User Management tab
+        3. Click 'Approve' on a pending partner
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshot_or_link
+    attributes:
+      label: "Paste a link or attach a screenshot (Optional)"
+      description: "You can drag and drop images directly into this box!"
+    validations:
+      required: false

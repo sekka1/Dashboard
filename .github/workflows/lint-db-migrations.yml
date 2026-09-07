@@ -1,0 +1,99 @@
+name: DB Migration Safety Linter
+
+on:
+  pull_request:
+    paths:
+      - 'drizzle/**/*.sql'
+
+permissions:
+  contents: read
+
+jobs:
+  lint-migrations:
+    name: Audit SQL Migrations for Data Loss Risks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Identify Changed Migration Files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            drizzle/**/*.sql
+          separator: "\n"
+
+      - name: Run Migration Safety Checks
+        if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          echo "============================================="
+          echo "  RUNNING DB MIGRATION SAFETY LINTER"
+          echo "============================================="
+
+          ERRORS_FOUND=0
+
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "Analyzing migration file: $file"
+
+            # Convert content to uppercase for uniform matching
+            UPPER_CONTENT=$(tr '[:lower:]' '[:upper:]' < "$file")
+
+            # -------------------------------------------------------------
+            # Rule 1: Prevent Destructive Drops (Data Loss Prevention)
+            # -------------------------------------------------------------
+            if echo "$UPPER_CONTENT" | grep -qE "DROP[[:space:]]+COLUMN|DROP[[:space:]]+TABLE|TRUNCATE"; then
+              echo "::error file=$file::[DATA LOSS RISK] Destructive operation detected (DROP COLUMN, DROP TABLE, or TRUNCATE). Use the Expand-and-Contract migration pattern instead."
+              ERRORS_FOUND=$((ERRORS_FOUND+1))
+            fi
+
+            # -------------------------------------------------------------
+            # Rule 2: Prevent Non-Nullable Columns Without Defaults
+            # (This project uses Cloudflare D1 / SQLite, which will fail to
+            # apply an ADD COLUMN ... NOT NULL migration on a populated
+            # table unless a DEFAULT is provided.) Scoped to the individual
+            # statement line so an unrelated DEFAULT elsewhere in the file
+            # cannot mask a missing DEFAULT on the offending line.
+            # -------------------------------------------------------------
+            NOT_NULL_ADDITIONS=$(echo "$UPPER_CONTENT" | grep -E "ADD[[:space:]]+(COLUMN[[:space:]]+)?[\`\"'\[]?[A-Z0-9_]+[\`\"'\]]?[[:space:]].*NOT[[:space:]]+NULL" || true)
+            if [ -n "$NOT_NULL_ADDITIONS" ]; then
+              while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                if ! echo "$line" | grep -qE "DEFAULT"; then
+                  echo "::error file=$file::[MIGRATION FAILURE RISK] Adding a NOT NULL column without a DEFAULT value will cause migrations to fail on existing populated tables. Offending statement: $line"
+                  ERRORS_FOUND=$((ERRORS_FOUND+1))
+                fi
+              done <<< "$NOT_NULL_ADDITIONS"
+            fi
+
+            # -------------------------------------------------------------
+            # Rule 3: SQLite table-rebuild without a data backfill step
+            # (drizzle-kit rebuilds tables for column type/constraint changes
+            # on SQLite/D1 by creating a new table, copying data, dropping
+            # the old table, then renaming. A RENAME TO without a matching
+            # INSERT INTO copy step silently discards existing rows.)
+            # -------------------------------------------------------------
+            if echo "$UPPER_CONTENT" | grep -qE "RENAME[[:space:]]+TO" && ! echo "$UPPER_CONTENT" | grep -qE "INSERT[[:space:]]+INTO"; then
+              echo "::warning file=$file::[POTENTIAL DATA LOSS - MANUAL REVIEW REQUIRED] Table rebuild (RENAME TO) detected without an INSERT INTO ... SELECT backfill step. This is advisory only; verify existing rows are copied to the new table before it replaces the old one."
+            fi
+
+          done <<< "$ALL_CHANGED_FILES"
+
+          if [ $ERRORS_FOUND -gt 0 ]; then
+            echo ""
+            echo "============================================="
+            echo "FAILED: $ERRORS_FOUND migration safety violation(s) found."
+            echo "============================================="
+            exit 1
+          else
+            echo ""
+            echo "============================================="
+            echo "SUCCESS: All migration safety checks passed!"
+            echo "============================================="
+          fi

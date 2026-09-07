@@ -1,0 +1,40 @@
+name: "🧰 Add a Boilerplate Feature"
+description: "Use this to propose a general-purpose feature/improvement for this boilerplate itself (not project-specific business logic)."
+title: "[Boilerplate]: "
+labels: ["boilerplate", "ai-task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🧰 Add a Feature to the Boilerplate
+        Use this template for changes that should benefit **every** project
+        copied from this boilerplate (see [COPY_THIS_REPO.md](../../COPY_THIS_REPO.md)),
+        not just this specific app. Examples: a new reusable GitHub Actions
+        workflow, a new `.github/agents` specialist, a new CI check, or a
+        generally-useful config/tooling improvement.
+
+  - type: textarea
+    id: what_to_add
+    attributes:
+      label: "What boilerplate feature or improvement do you want to add?"
+      description: "Describe the general-purpose capability, tool, or pattern to add."
+      placeholder: "e.g., Add a reusable GitHub Actions workflow that runs a security scan on every PR."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why_needed
+    attributes:
+      label: "Why should this be part of the boilerplate (not just this project)?"
+      description: "Explain why this should apply to any project spawned from this repo."
+      placeholder: "e.g., Every project copied from this boilerplate should have automated dependency vulnerability scanning by default."
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_areas
+    attributes:
+      label: "What parts of the boilerplate does this touch? (Optional)"
+      description: "e.g., .github/workflows, .github/agents, AGENT.md, COPY_THIS_REPO.md, root config files."
+    validations:
+      required: false
