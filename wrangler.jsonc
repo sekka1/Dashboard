@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "dashboard-db",
-      "database_id": "{{ CLOUDFLARE_D1_DATABASE_ID }}",
+      "database_id": "47f1e365-0b6e-4074-bf1a-e60c36d3e196",
       "migrations_dir": "drizzle"
     }
   ],
