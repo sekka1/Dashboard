@@ -8,6 +8,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     ASSETS: {} as Env["ASSETS"],
     BETTER_AUTH_URL: "http://localhost:8787",
     BETTER_AUTH_SECRET: "secret",
+    SENSOR_API_TOKEN: "sensor-secret",
     ...overrides,
   };
 }
