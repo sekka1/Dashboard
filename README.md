@@ -91,6 +91,41 @@ variable to a comma-separated list of extra origins. Local development
 origins (`http://localhost:5173` and `http://localhost:8787`) are always
 trusted automatically.
 
+### Garden Sensor Data API (`POST /data`)
+
+Sensors submit readings by sending a `POST` request to `/data` with a JSON
+body and the shared `x-sensor-api-token` header (the value configured as the
+`SENSOR_API_TOKEN` secret above). This endpoint is public (no user
+session/cookie is required) but rejects any request that is missing the
+header or sends the wrong token.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `device_id` | string (1–100 chars) | yes | Identifier for the sensor device, e.g. `esp32-c3-garden-01` |
+| `temperature` | number | yes | Degrees Celsius |
+| `humidity` | number | yes | Relative humidity percentage |
+| `battery_voltage` | number | no | Battery voltage, if the sensor reports it |
+| `timestamp` | integer | no | Epoch seconds when the reading was taken (if the sensor has NTP sync). If omitted, the server stamps the reading with the time it was received |
+
+Example request:
+
+```bash
+curl -X POST https://your-worker-name.your-subdomain.workers.dev/data \
+  -H "content-type: application/json" \
+  -H "x-sensor-api-token: $SENSOR_API_TOKEN" \
+  -d '{"device_id":"esp32-c3-garden-01","temperature":23.4,"humidity":65.2,"battery_voltage":3.82}'
+```
+
+Responses:
+
+- `201 Created` with `{ "success": true }` when the reading is stored.
+- `401 Unauthorized` when the `x-sensor-api-token` header is missing or incorrect.
+- `400 Bad Request` when the JSON body fails validation (missing/invalid fields).
+
+Signed-in dashboard users can read back the stored readings via the
+authenticated `GET /api/sensors/readings?limit=<n>` endpoint (defaults to 100,
+capped at 500), which powers the garden dashboard's table and charts.
+
 ### Seeding Initial Users
 
 After applying migrations, you can seed the database with one active user per
