@@ -105,7 +105,7 @@ header or sends the wrong token.
 | `temperature` | number | yes | Degrees Celsius |
 | `humidity` | number | yes | Relative humidity percentage |
 | `battery_voltage` | number | no | Battery voltage, if the sensor reports it |
-| `timestamp` | integer | no | Epoch seconds when the reading was taken (if the sensor has NTP sync). If omitted, the server stamps the reading with the time it was received |
+| `timestamp` | integer | no | Accepted for compatibility, but the server always stamps the reading with the time it was received |
 
 Example request:
 
