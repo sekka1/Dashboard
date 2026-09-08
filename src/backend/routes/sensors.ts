@@ -12,8 +12,8 @@ const sensorReadingSchema = z.object({
   temperature: z.number(),
   humidity: z.number(),
   battery_voltage: z.number().optional(),
-  // Sensors may send an epoch timestamp if they have NTP sync; when absent
-  // the worker stamps the reading with the time it was received.
+  // Accepted for compatibility with sensors that include an epoch timestamp;
+  // the worker always records the time the reading was received.
   timestamp: z.number().int().optional(),
 });
 
@@ -38,7 +38,7 @@ export const dataIngestRoute = new Hono<{ Bindings: Env; Variables: AppVariables
       temperature: body.temperature,
       humidity: body.humidity,
       batteryVoltage: body.battery_voltage ?? null,
-      createdAt: body.timestamp ? new Date(body.timestamp * 1000) : new Date(),
+      createdAt: new Date(),
     };
     await db.insert(sensorReadings).values(reading);
     return c.json({ success: true }, 201);

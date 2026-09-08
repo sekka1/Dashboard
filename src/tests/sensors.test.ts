@@ -29,6 +29,7 @@ describe("Sensor data ingestion", () => {
   });
 
   it("accepts a valid sensor reading and stores it", async () => {
+    const receivedAtBeforePost = Date.now();
     const postRes = await SELF.fetch("https://example.com/data", {
       method: "POST",
       headers: {
@@ -40,9 +41,19 @@ describe("Sensor data ingestion", () => {
         temperature: 23.4,
         humidity: 65.2,
         battery_voltage: 3.82,
+        timestamp: 1,
       }),
     });
     expect(postRes.status).toBe(201);
     expect(await postRes.json()).toEqual({ success: true });
+
+    const stored = await env.DB.prepare(
+      "SELECT created_at FROM sensor_readings WHERE device_id = ? ORDER BY id DESC LIMIT 1",
+    )
+      .bind("esp32-c3-garden-01")
+      .first<{ created_at: number }>();
+    expect(stored).not.toBeNull();
+    expect(stored!.created_at).toBeGreaterThanOrEqual(receivedAtBeforePost);
+    expect(stored!.created_at).toBeLessThanOrEqual(Date.now());
   });
 });
