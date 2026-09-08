@@ -53,7 +53,9 @@ describe("Sensor data ingestion", () => {
       .bind("esp32-c3-garden-01")
       .first<{ created_at: number }>();
     expect(stored).not.toBeNull();
-    expect(stored!.created_at).toBeGreaterThanOrEqual(receivedAtBeforePost);
-    expect(stored!.created_at).toBeLessThanOrEqual(Date.now());
+    expect(stored!.created_at).toBeGreaterThanOrEqual(
+      Math.floor(receivedAtBeforePost / 1000),
+    );
+    expect(stored!.created_at).toBeLessThanOrEqual(Math.floor(Date.now() / 1000));
   });
 });
