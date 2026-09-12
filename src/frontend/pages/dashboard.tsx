@@ -92,6 +92,8 @@ export function DashboardPage() {
                         tickFormatter={(t) => new Date(t).toLocaleTimeString()}
                       />
                       <YAxis
+                        domain={metric.boolean ? [0, 1] : undefined}
+                        ticks={metric.boolean ? [0, 1] : undefined}
                         unit={metric.unit}
                         tickFormatter={
                           metric.boolean ? (value) => (value === 1 ? "Yes" : "No") : undefined
