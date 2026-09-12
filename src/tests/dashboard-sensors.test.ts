@@ -78,18 +78,18 @@ describe("sensor dashboard helpers", () => {
       [
         {
           ...baseReading,
-          deviceId: "esp32-c3-garden-01",
-          createdAt: firstReceivedAt,
-          sensorTimestamp: 81,
-          humidity: 42,
-        },
-        {
-          ...baseReading,
           id: 2,
           deviceId: "esp32-c3-garden-02",
           createdAt: secondReceivedAt,
           sensorTimestamp: 81,
           humidity: 44,
+        },
+        {
+          ...baseReading,
+          deviceId: "esp32-c3-garden-01",
+          createdAt: firstReceivedAt,
+          sensorTimestamp: 81,
+          humidity: 42,
         },
       ],
       SENSOR_GRAPH_METRICS[6],

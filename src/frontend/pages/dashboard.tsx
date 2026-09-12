@@ -94,6 +94,11 @@ export function DashboardPage() {
                       <YAxis
                         domain={metric.boolean ? [0, 1] : undefined}
                         ticks={metric.boolean ? [0, 1] : undefined}
+                        label={
+                          metric.boolean
+                            ? { value: "No = 0, Yes = 1", angle: -90, position: "insideLeft" }
+                            : undefined
+                        }
                         unit={metric.unit}
                         tickFormatter={
                           metric.boolean ? (value) => (value === 1 ? "Yes" : "No") : undefined

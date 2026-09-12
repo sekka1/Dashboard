@@ -84,6 +84,7 @@ export function buildSeriesByDevice(readings: SensorReading[], metric: SensorMet
         ? `received:${time}`
         : `sensor:${reading.sensorTimestamp}`;
     const existing = byTime.get(groupKey) ?? { time };
+    existing.time = Math.min(existing.time, time);
     existing[reading.deviceId] = value;
     byTime.set(groupKey, existing);
   }
