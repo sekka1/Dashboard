@@ -71,7 +71,7 @@ describe("sensor dashboard helpers", () => {
     ]);
   });
 
-  it("aligns readings by comparable sensor timestamps when devices report the same sample", () => {
+  it("aligns readings by shared sensor timestamps when devices report the same sample", () => {
     const firstReceivedAt = "2026-09-12T00:00:00.000Z";
     const secondReceivedAt = "2026-09-12T00:00:05.000Z";
     const series = buildSeriesByDevice(
@@ -81,14 +81,14 @@ describe("sensor dashboard helpers", () => {
           id: 2,
           deviceId: "esp32-c3-garden-02",
           createdAt: secondReceivedAt,
-          sensorTimestamp: 1_789_187_623,
+          sensorTimestamp: 81,
           humidity: 44,
         },
         {
           ...baseReading,
           deviceId: "esp32-c3-garden-01",
           createdAt: firstReceivedAt,
-          sensorTimestamp: 1_789_187_623,
+          sensorTimestamp: 81,
           humidity: 42,
         },
       ],
@@ -104,7 +104,7 @@ describe("sensor dashboard helpers", () => {
     ]);
   });
 
-  it("does not merge devices on non-comparable sensor timestamps", () => {
+  it("does not merge distant samples that reuse the same sensor timestamp", () => {
     const series = buildSeriesByDevice(
       [
         baseReading,
@@ -112,7 +112,7 @@ describe("sensor dashboard helpers", () => {
           ...baseReading,
           id: 2,
           deviceId: "esp32-c3-garden-02",
-          createdAt: "2026-09-12T00:00:05.000Z",
+          createdAt: "2026-09-12T01:01:05.000Z",
         },
       ],
       SENSOR_GRAPH_METRICS[6],

@@ -29,6 +29,8 @@ interface SensorSeriesPoint extends Record<string, number> {
   time: number;
 }
 
+const SENSOR_TIMESTAMP_GROUP_WINDOW_MS = 60_000;
+
 export const SENSOR_GRAPH_METRICS: SensorMetricDefinition[] = [
   { key: "temperature", title: "Temperature over time", unit: "°C" },
   { key: "temperatureC", title: "Temperature (C) over time", unit: "°C" },
@@ -70,10 +72,6 @@ function normalizeMetricValue(reading: SensorReading, metric: SensorMetricDefini
   return value;
 }
 
-function hasComparableSensorTimestamp(sensorTimestamp: number | null) {
-  return sensorTimestamp !== null && sensorTimestamp >= 1_000_000_000;
-}
-
 export function buildSeriesByDevice(readings: SensorReading[], metric: SensorMetricDefinition) {
   const devices = Array.from(new Set(readings.map((r) => r.deviceId))).sort();
   const byTime = new Map<string, SensorSeriesPoint>();
@@ -83,9 +81,10 @@ export function buildSeriesByDevice(readings: SensorReading[], metric: SensorMet
     if (value === null || value === undefined) continue;
 
     const time = new Date(reading.createdAt).getTime();
-    const groupKey = hasComparableSensorTimestamp(reading.sensorTimestamp)
-      ? `sensor:${reading.sensorTimestamp}`
-      : `received:${time}`;
+    const groupKey =
+      reading.sensorTimestamp === null
+        ? `received:${time}`
+        : `sensor:${reading.sensorTimestamp}:window:${Math.floor(time / SENSOR_TIMESTAMP_GROUP_WINDOW_MS)}`;
     const existing = byTime.get(groupKey) ?? { time };
     existing.time = Math.min(existing.time, time);
     existing[reading.deviceId] = value;
