@@ -25,6 +25,10 @@ export interface SensorMetricDefinition {
   boolean?: true;
 }
 
+interface SensorSeriesPoint extends Record<string, number> {
+  time: number;
+}
+
 export const SENSOR_GRAPH_METRICS: SensorMetricDefinition[] = [
   { key: "temperature", title: "Temperature over time", unit: "°C" },
   { key: "temperatureC", title: "Temperature (C) over time", unit: "°C" },
@@ -68,16 +72,20 @@ function normalizeMetricValue(reading: SensorReading, metric: SensorMetricDefini
 
 export function buildSeriesByDevice(readings: SensorReading[], metric: SensorMetricDefinition) {
   const devices = Array.from(new Set(readings.map((r) => r.deviceId))).sort();
-  const byTime = new Map<number, Record<string, number>>();
+  const byTime = new Map<string, SensorSeriesPoint>();
 
   for (const reading of readings) {
     const value = normalizeMetricValue(reading, metric);
     if (value === null || value === undefined) continue;
 
     const time = new Date(reading.createdAt).getTime();
-    const existing = byTime.get(time) ?? { time };
+    const groupKey =
+      reading.sensorTimestamp === null || reading.sensorTimestamp === undefined
+        ? `received:${time}`
+        : `sensor:${reading.sensorTimestamp}`;
+    const existing = byTime.get(groupKey) ?? { time };
     existing[reading.deviceId] = value;
-    byTime.set(time, existing);
+    byTime.set(groupKey, existing);
   }
 
   const data = Array.from(byTime.values()).sort((a, b) => a.time - b.time);
