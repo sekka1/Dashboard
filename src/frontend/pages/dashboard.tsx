@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { StatCard } from "@/components/stat-card";
 import { apiClient } from "@/lib/api";
+import { buildSeriesByDevice, SENSOR_GRAPH_METRICS } from "@/lib/sensor-metrics";
 import type { SensorReading } from "@/types";
 
 const TABLE_ROW_LIMIT = 20;
@@ -23,26 +24,6 @@ function average(values: number[]) {
 
 function formatNumber(value: number | null, unit: string) {
   return value === null ? "—" : `${value.toFixed(1)}${unit}`;
-}
-
-/**
- * Reshapes readings (one row per device per timestamp) into rows keyed by
- * timestamp with one column per device, which is the shape recharts expects
- * to draw one line per device on a shared time axis.
- */
-function buildSeriesByDevice(readings: SensorReading[], metric: "temperature" | "humidity") {
-  const devices = Array.from(new Set(readings.map((r) => r.deviceId))).sort();
-  const byTime = new Map<number, Record<string, number | string>>();
-
-  for (const reading of readings) {
-    const time = new Date(reading.createdAt).getTime();
-    const existing = byTime.get(time) ?? { time };
-    existing[reading.deviceId] = reading[metric];
-    byTime.set(time, existing);
-  }
-
-  const data = Array.from(byTime.values()).sort((a, b) => (a.time as number) - (b.time as number));
-  return { devices, data };
 }
 
 export function DashboardPage() {
@@ -67,9 +48,13 @@ export function DashboardPage() {
   const avgTemperature = average(readings.map((r) => r.temperature));
   const deviceCount = new Set(readings.map((r) => r.deviceId)).size;
   const tableRows = readings.slice(0, TABLE_ROW_LIMIT);
-
-  const temperatureSeries = useMemo(() => buildSeriesByDevice(readings, "temperature"), [readings]);
-  const humiditySeries = useMemo(() => buildSeriesByDevice(readings, "humidity"), [readings]);
+  const metricSeries = useMemo(
+    () =>
+      Object.fromEntries(
+        SENSOR_GRAPH_METRICS.map((metric) => [metric.key, buildSeriesByDevice(readings, metric)]),
+      ),
+    [readings],
+  );
 
   return (
     <div className="min-h-screen bg-emerald-50">
@@ -85,70 +70,59 @@ export function DashboardPage() {
           <StatCard label="Sensors Reporting" value={deviceCount} />
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-lg bg-white p-4 shadow">
-            <h2 className="mb-2 text-sm font-medium text-slate-500">Temperature over time (°C)</h2>
-            {readings.length === 0 ? (
-              <p className="py-10 text-center text-slate-400">No sensor readings yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={temperatureSeries.data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="time"
-                    type="number"
-                    domain={["dataMin", "dataMax"]}
-                    tickFormatter={(t) => new Date(t).toLocaleTimeString()}
-                  />
-                  <YAxis unit="°C" />
-                  <Tooltip labelFormatter={(t) => new Date(t as number).toLocaleString()} />
-                  <Legend />
-                  {temperatureSeries.devices.map((deviceId, i) => (
-                    <Line
-                      key={deviceId}
-                      type="monotone"
-                      dataKey={deviceId}
-                      name={deviceId}
-                      stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                      connectNulls
-                      dot={false}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="rounded-lg bg-white p-4 shadow">
-            <h2 className="mb-2 text-sm font-medium text-slate-500">Humidity over time (%)</h2>
-            {readings.length === 0 ? (
-              <p className="py-10 text-center text-slate-400">No sensor readings yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={humiditySeries.data}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="time"
-                    type="number"
-                    domain={["dataMin", "dataMax"]}
-                    tickFormatter={(t) => new Date(t).toLocaleTimeString()}
-                  />
-                  <YAxis unit="%" />
-                  <Tooltip labelFormatter={(t) => new Date(t as number).toLocaleString()} />
-                  <Legend />
-                  {humiditySeries.devices.map((deviceId, i) => (
-                    <Line
-                      key={deviceId}
-                      type="monotone"
-                      dataKey={deviceId}
-                      name={deviceId}
-                      stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                      connectNulls
-                      dot={false}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+          {SENSOR_GRAPH_METRICS.map((metric) => {
+            const series = metricSeries[metric.key];
+
+            return (
+              <div key={metric.key} className="rounded-lg bg-white p-4 shadow">
+                <h2 className="mb-2 text-sm font-medium text-slate-500">
+                  {metric.title}
+                  {metric.unit ? ` (${metric.unit})` : ""}
+                </h2>
+                {readings.length === 0 || series.data.length === 0 ? (
+                  <p className="py-10 text-center text-slate-400">No sensor readings yet.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={series.data}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="time"
+                        type="number"
+                        domain={["dataMin", "dataMax"]}
+                        tickFormatter={(t) => new Date(t).toLocaleTimeString()}
+                      />
+                      <YAxis
+                        unit={metric.unit}
+                        tickFormatter={
+                          metric.boolean ? (value) => (value === 1 ? "Yes" : "No") : undefined
+                        }
+                      />
+                      <Tooltip
+                        labelFormatter={(t) => new Date(t as number).toLocaleString()}
+                        formatter={(value) => {
+                          if (metric.boolean) return value === 1 ? "Yes" : "No";
+                          if (typeof value === "number" && metric.unit) return `${value}${metric.unit}`;
+                          return value;
+                        }}
+                      />
+                      <Legend />
+                      {series.devices.map((deviceId, i) => (
+                        <Line
+                          key={deviceId}
+                          type="monotone"
+                          dataKey={deviceId}
+                          name={deviceId}
+                          stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                          connectNulls
+                          dot={false}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            );
+          })}
         </div>
         <div className="rounded-lg bg-white shadow">
           <h2 className="px-4 pt-4 text-sm font-medium text-slate-500">Last {TABLE_ROW_LIMIT} readings</h2>
