@@ -39,8 +39,21 @@ describe("Sensor data ingestion", () => {
       body: JSON.stringify({
         device_id: "esp32-c3-garden-01",
         temperature: 23.4,
+        temperature_c: 23.4,
+        temperature_f: 74.12,
+        temperature_sensor_pin: 1,
+        temperature_sensor_connected: true,
+        temperature_sensor_count: 1,
         humidity: 65.2,
         battery_voltage: 3.82,
+        moisture_sensor_raw_adc: 952,
+        moisture_sensor_air_value: 4000,
+        moisture_sensor_water_value: 1500,
+        moisture_sensor_moisture_percent: 100,
+        moisture_sensor_percent: 100,
+        moisture_sensor_calibrated_percent: 100,
+        moisture_sensor_pin: 0,
+        moisture_sensor_reading_time_ms: 81530,
         timestamp: 1,
       }),
     });
@@ -48,11 +61,71 @@ describe("Sensor data ingestion", () => {
     expect(await postRes.json()).toEqual({ success: true });
 
     const stored = await env.DB.prepare(
-      "SELECT created_at FROM sensor_readings WHERE device_id = ? ORDER BY id DESC LIMIT 1",
+      `SELECT
+        temperature,
+        temperature_c,
+        temperature_f,
+        temperature_sensor_pin,
+        temperature_sensor_connected,
+        temperature_sensor_count,
+        humidity,
+        battery_voltage,
+        moisture_sensor_raw_adc,
+        moisture_sensor_air_value,
+        moisture_sensor_water_value,
+        moisture_sensor_moisture_percent,
+        moisture_sensor_percent,
+        moisture_sensor_calibrated_percent,
+        moisture_sensor_pin,
+        moisture_sensor_reading_time_ms,
+        sensor_timestamp,
+        created_at
+      FROM sensor_readings
+      WHERE device_id = ?
+      ORDER BY id DESC
+      LIMIT 1`,
     )
       .bind("esp32-c3-garden-01")
-      .first<{ created_at: number }>();
+      .first<{
+        temperature: number;
+        temperature_c: number;
+        temperature_f: number;
+        temperature_sensor_pin: number;
+        temperature_sensor_connected: number;
+        temperature_sensor_count: number;
+        humidity: number;
+        battery_voltage: number;
+        moisture_sensor_raw_adc: number;
+        moisture_sensor_air_value: number;
+        moisture_sensor_water_value: number;
+        moisture_sensor_moisture_percent: number;
+        moisture_sensor_percent: number;
+        moisture_sensor_calibrated_percent: number;
+        moisture_sensor_pin: number;
+        moisture_sensor_reading_time_ms: number;
+        sensor_timestamp: number;
+        created_at: number;
+      }>();
     expect(stored).not.toBeNull();
+    expect(stored).toMatchObject({
+      temperature: 23.4,
+      temperature_c: 23.4,
+      temperature_f: 74.12,
+      temperature_sensor_pin: 1,
+      temperature_sensor_connected: 1,
+      temperature_sensor_count: 1,
+      humidity: 65.2,
+      battery_voltage: 3.82,
+      moisture_sensor_raw_adc: 952,
+      moisture_sensor_air_value: 4000,
+      moisture_sensor_water_value: 1500,
+      moisture_sensor_moisture_percent: 100,
+      moisture_sensor_percent: 100,
+      moisture_sensor_calibrated_percent: 100,
+      moisture_sensor_pin: 0,
+      moisture_sensor_reading_time_ms: 81530,
+      sensor_timestamp: 1,
+    });
     expect(stored!.created_at).toBeGreaterThanOrEqual(
       Math.floor(receivedAtBeforePost / 1000),
     );
