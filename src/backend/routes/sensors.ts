@@ -14,6 +14,9 @@ const sensorReadingSchema = z.object({
   temperature_c: z.number().optional(),
   temperature_f: z.number().optional(),
   temperature_sensor_pin: z.number().int().optional(),
+  temperature_sensor_sda_pin: z.number().int().optional(),
+  temperature_sensor_scl_pin: z.number().int().optional(),
+  temperature_sensor_i2c_address: z.number().int().optional(),
   temp_sensor_to_92_temperature: z.number().optional(),
   temp_sensor_to_92_temperature_c: z.number().optional(),
   temp_sensor_to_92_temperature_f: z.number().optional(),
@@ -104,9 +107,12 @@ export const dataIngestRoute = new Hono<{ Bindings: Env; Variables: AppVariables
           : body.temp_sensor_to_92_temperature ?? null),
       temperatureF: body.temperature_f ?? body.temp_sensor_to_92_temperature_f ?? null,
       temperatureSensorPin: body.temperature_sensor_pin ?? null,
-      temperatureSensorSdaPin: body.temp_sensor_to_92_sda_pin ?? null,
-      temperatureSensorSclPin: body.temp_sensor_to_92_scl_pin ?? null,
-      temperatureSensorI2cAddress: body.temp_sensor_to_92_i2c_address ?? null,
+      temperatureSensorSdaPin:
+        body.temperature_sensor_sda_pin ?? body.temp_sensor_to_92_sda_pin ?? null,
+      temperatureSensorSclPin:
+        body.temperature_sensor_scl_pin ?? body.temp_sensor_to_92_scl_pin ?? null,
+      temperatureSensorI2cAddress:
+        body.temperature_sensor_i2c_address ?? body.temp_sensor_to_92_i2c_address ?? null,
       temperatureSensorConnected:
         body.temperature_sensor_connected ?? body.temp_sensor_to_92_connected ?? null,
       temperatureSensorCount: body.temperature_sensor_count ?? body.temp_sensor_to_92_count ?? null,

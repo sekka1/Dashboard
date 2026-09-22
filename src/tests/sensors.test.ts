@@ -42,6 +42,9 @@ describe("Sensor data ingestion", () => {
         temperature_c: 23.4,
         temperature_f: 74.12,
         temperature_sensor_pin: 1,
+        temperature_sensor_sda_pin: 6,
+        temperature_sensor_scl_pin: 7,
+        temperature_sensor_i2c_address: 68,
         temperature_sensor_connected: true,
         temperature_sensor_count: 1,
         humidity: 65.2,
@@ -66,6 +69,9 @@ describe("Sensor data ingestion", () => {
         temperature_c,
         temperature_f,
         temperature_sensor_pin,
+        temperature_sensor_sda_pin,
+        temperature_sensor_scl_pin,
+        temperature_sensor_i2c_address,
         temperature_sensor_connected,
         temperature_sensor_count,
         humidity,
@@ -91,6 +97,9 @@ describe("Sensor data ingestion", () => {
         temperature_c: number;
         temperature_f: number;
         temperature_sensor_pin: number;
+        temperature_sensor_sda_pin: number;
+        temperature_sensor_scl_pin: number;
+        temperature_sensor_i2c_address: number;
         temperature_sensor_connected: number;
         temperature_sensor_count: number;
         humidity: number;
@@ -112,6 +121,9 @@ describe("Sensor data ingestion", () => {
       temperature_c: 23.4,
       temperature_f: 74.12,
       temperature_sensor_pin: 1,
+      temperature_sensor_sda_pin: 6,
+      temperature_sensor_scl_pin: 7,
+      temperature_sensor_i2c_address: 68,
       temperature_sensor_connected: 1,
       temperature_sensor_count: 1,
       humidity: 65.2,
