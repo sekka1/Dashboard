@@ -280,4 +280,51 @@ describe("Sensor data ingestion", () => {
       sensor_timestamp: 281,
     });
   });
+
+  it("prefers legacy keys when both legacy and new aliases are posted together", async () => {
+    const postRes = await SELF.fetch("https://example.com/data", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-sensor-api-token": env.SENSOR_API_TOKEN,
+      },
+      body: JSON.stringify({
+        device_id: "esp32-c3-garden-03",
+        temperature: 20.5,
+        temp_sensor_to_92_temperature: 27.4,
+        humidity: 51.2,
+        temp_sensor_to_92_humidity: 39.3,
+        temperature_sensor_sda_pin: 4,
+        temp_sensor_to_92_sda_pin: 6,
+        moisture_sensor_raw_adc: 1111,
+        soil_moisture_probe_prone_raw_adc: 3550,
+      }),
+    });
+    expect(postRes.status).toBe(201);
+
+    const stored = await env.DB.prepare(
+      `SELECT
+        temperature,
+        humidity,
+        temperature_sensor_sda_pin,
+        moisture_sensor_raw_adc
+      FROM sensor_readings
+      WHERE device_id = ?
+      ORDER BY id DESC
+      LIMIT 1`,
+    )
+      .bind("esp32-c3-garden-03")
+      .first<{
+        temperature: number;
+        humidity: number;
+        temperature_sensor_sda_pin: number;
+        moisture_sensor_raw_adc: number;
+      }>();
+    expect(stored).toMatchObject({
+      temperature: 20.5,
+      humidity: 51.2,
+      temperature_sensor_sda_pin: 4,
+      moisture_sensor_raw_adc: 1111,
+    });
+  });
 });
