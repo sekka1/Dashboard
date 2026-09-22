@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { desc, gte } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { getDb } from "../../db";
 import { sensorReadings, type NewSensorReading, type SensorReading } from "../../db/schema";
 import { requireAuth, type AppVariables } from "../middleware/rbac";
@@ -119,6 +119,94 @@ type AveragedSensorField = (typeof AVERAGED_SENSOR_FIELDS)[number];
 
 function timestampMs(value: Date | string) {
   return new Date(value).getTime();
+}
+
+interface RawChartReadingRow {
+  id: number;
+  deviceId: string;
+  sensorType: string | null;
+  temperature: number;
+  temperatureC: number | null;
+  temperatureF: number | null;
+  temperatureSensorPin: number | null;
+  temperatureSensorSdaPin: number | null;
+  temperatureSensorSclPin: number | null;
+  temperatureSensorI2cAddress: number | null;
+  temperatureSensorConnected: number | null;
+  temperatureSensorCount: number | null;
+  humidity: number;
+  batteryVoltage: number | null;
+  moistureSensorRawAdc: number | null;
+  moistureSensorAirValue: number | null;
+  moistureSensorWaterValue: number | null;
+  moistureSensorMoisturePercent: number | null;
+  moistureSensorPercent: number | null;
+  moistureSensorCalibratedPercent: number | null;
+  moistureSensorPin: number | null;
+  moistureSensorProbe1AoPin: number | null;
+  moistureSensorProbe1RawAdc: number | null;
+  moistureSensorProbe1MoisturePercent: number | null;
+  moistureSensorProbe1PowerPin: number | null;
+  moistureSensorProbe2AoPin: number | null;
+  moistureSensorProbe2RawAdc: number | null;
+  moistureSensorProbe2MoisturePercent: number | null;
+  moistureSensorProbe2PowerPin: number | null;
+  moistureSensorReadingTimeMs: number | null;
+  bucketCreatedAt: number;
+}
+
+async function fetchChartReadings(db: Env["DB"], range: SensorChartRange): Promise<SensorReading[]> {
+  const { bucketMs, windowMs } = SENSOR_CHART_RANGE_CONFIG[range];
+  const bucketSeconds = Math.floor(bucketMs / 1_000);
+  const sinceSeconds = Math.floor((Date.now() - windowMs) / 1_000);
+  const results = await db
+    .prepare(
+      `SELECT
+        MAX(id) AS id,
+        device_id AS deviceId,
+        MAX(sensor_type) AS sensorType,
+        AVG(temperature) AS temperature,
+        AVG(temperature_c) AS temperatureC,
+        AVG(temperature_f) AS temperatureF,
+        MAX(temperature_sensor_pin) AS temperatureSensorPin,
+        MAX(temperature_sensor_sda_pin) AS temperatureSensorSdaPin,
+        MAX(temperature_sensor_scl_pin) AS temperatureSensorSclPin,
+        MAX(temperature_sensor_i2c_address) AS temperatureSensorI2cAddress,
+        MAX(temperature_sensor_connected) AS temperatureSensorConnected,
+        MAX(temperature_sensor_count) AS temperatureSensorCount,
+        AVG(humidity) AS humidity,
+        AVG(battery_voltage) AS batteryVoltage,
+        AVG(moisture_sensor_raw_adc) AS moistureSensorRawAdc,
+        AVG(moisture_sensor_air_value) AS moistureSensorAirValue,
+        AVG(moisture_sensor_water_value) AS moistureSensorWaterValue,
+        AVG(moisture_sensor_moisture_percent) AS moistureSensorMoisturePercent,
+        AVG(moisture_sensor_percent) AS moistureSensorPercent,
+        AVG(moisture_sensor_calibrated_percent) AS moistureSensorCalibratedPercent,
+        MAX(moisture_sensor_pin) AS moistureSensorPin,
+        MAX(moisture_sensor_probe_1_ao_pin) AS moistureSensorProbe1AoPin,
+        AVG(moisture_sensor_probe_1_raw_adc) AS moistureSensorProbe1RawAdc,
+        AVG(moisture_sensor_probe_1_moisture_percent) AS moistureSensorProbe1MoisturePercent,
+        MAX(moisture_sensor_probe_1_power_pin) AS moistureSensorProbe1PowerPin,
+        MAX(moisture_sensor_probe_2_ao_pin) AS moistureSensorProbe2AoPin,
+        AVG(moisture_sensor_probe_2_raw_adc) AS moistureSensorProbe2RawAdc,
+        AVG(moisture_sensor_probe_2_moisture_percent) AS moistureSensorProbe2MoisturePercent,
+        MAX(moisture_sensor_probe_2_power_pin) AS moistureSensorProbe2PowerPin,
+        AVG(moisture_sensor_reading_time_ms) AS moistureSensorReadingTimeMs,
+        CAST(created_at / ? AS INTEGER) * ? AS bucketCreatedAt
+      FROM sensor_readings
+      WHERE created_at >= ?
+      GROUP BY device_id, CAST(created_at / ? AS INTEGER)
+      ORDER BY bucketCreatedAt ASC, device_id ASC`,
+    )
+    .bind(bucketSeconds, bucketSeconds, sinceSeconds, bucketSeconds)
+    .all<RawChartReadingRow>();
+
+  return (results.results ?? []).map(({ bucketCreatedAt, temperatureSensorConnected, ...row }) => ({
+    ...row,
+    temperatureSensorConnected: temperatureSensorConnected === null ? null : Boolean(temperatureSensorConnected),
+    sensorTimestamp: null,
+    createdAt: new Date(bucketCreatedAt * 1_000),
+  }));
 }
 
 export function summarizeReadingsForChartRange(
@@ -292,15 +380,6 @@ export const sensorsRoute = new Hono<{ Bindings: Env; Variables: AppVariables }>
     return c.json({ readings: rows });
   })
   .get("/chart-readings", zValidator("query", chartRangeSchema), async (c) => {
-    const db = getDb(c.env.DB);
     const { range } = c.req.valid("query");
-    const { windowMs } = SENSOR_CHART_RANGE_CONFIG[range];
-    const since = new Date(Date.now() - windowMs);
-    const rows = await db
-      .select()
-      .from(sensorReadings)
-      .where(gte(sensorReadings.createdAt, since))
-      .orderBy(desc(sensorReadings.createdAt));
-
-    return c.json({ readings: summarizeReadingsForChartRange(rows, range) });
+    return c.json({ readings: await fetchChartReadings(c.env.DB, range) });
   });
