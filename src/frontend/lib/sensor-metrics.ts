@@ -5,6 +5,9 @@ export type SensorMetricKey =
   | "temperatureC"
   | "temperatureF"
   | "temperatureSensorPin"
+  | "temperatureSensorSdaPin"
+  | "temperatureSensorSclPin"
+  | "temperatureSensorI2cAddress"
   | "temperatureSensorConnected"
   | "temperatureSensorCount"
   | "humidity"
@@ -16,6 +19,14 @@ export type SensorMetricKey =
   | "moistureSensorPercent"
   | "moistureSensorCalibratedPercent"
   | "moistureSensorPin"
+  | "moistureSensorProbe1AoPin"
+  | "moistureSensorProbe1RawAdc"
+  | "moistureSensorProbe1MoisturePercent"
+  | "moistureSensorProbe1PowerPin"
+  | "moistureSensorProbe2AoPin"
+  | "moistureSensorProbe2RawAdc"
+  | "moistureSensorProbe2MoisturePercent"
+  | "moistureSensorProbe2PowerPin"
   | "moistureSensorReadingTimeMs";
 
 export interface SensorMetricDefinition {
@@ -36,6 +47,9 @@ export const SENSOR_GRAPH_METRICS: SensorMetricDefinition[] = [
   { key: "temperatureC", title: "Temperature (C) over time", unit: "°C" },
   { key: "temperatureF", title: "Temperature (F) over time", unit: "°F" },
   { key: "temperatureSensorPin", title: "Temperature sensor pin over time" },
+  { key: "temperatureSensorSdaPin", title: "Temperature sensor SDA pin over time" },
+  { key: "temperatureSensorSclPin", title: "Temperature sensor SCL pin over time" },
+  { key: "temperatureSensorI2cAddress", title: "Temperature sensor I2C address over time" },
   {
     key: "temperatureSensorConnected",
     title: "Temperature sensor connected over time",
@@ -59,6 +73,28 @@ export const SENSOR_GRAPH_METRICS: SensorMetricDefinition[] = [
     unit: "%",
   },
   { key: "moistureSensorPin", title: "Moisture sensor pin over time" },
+  { key: "moistureSensorProbe1AoPin", title: "Moisture sensor probe 1 AO pin over time" },
+  { key: "moistureSensorProbe1RawAdc", title: "Moisture sensor probe 1 raw ADC over time" },
+  {
+    key: "moistureSensorProbe1MoisturePercent",
+    title: "Moisture sensor probe 1 moisture percent over time",
+    unit: "%",
+  },
+  {
+    key: "moistureSensorProbe1PowerPin",
+    title: "Moisture sensor probe 1 power pin over time",
+  },
+  { key: "moistureSensorProbe2AoPin", title: "Moisture sensor probe 2 AO pin over time" },
+  { key: "moistureSensorProbe2RawAdc", title: "Moisture sensor probe 2 raw ADC over time" },
+  {
+    key: "moistureSensorProbe2MoisturePercent",
+    title: "Moisture sensor probe 2 moisture percent over time",
+    unit: "%",
+  },
+  {
+    key: "moistureSensorProbe2PowerPin",
+    title: "Moisture sensor probe 2 power pin over time",
+  },
   {
     key: "moistureSensorReadingTimeMs",
     title: "Moisture sensor reading time over time",

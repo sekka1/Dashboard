@@ -2,13 +2,23 @@ import { describe, expect, it } from "vitest";
 import { buildSeriesByDevice, SENSOR_GRAPH_METRICS } from "../frontend/lib/sensor-metrics";
 import type { SensorReading } from "../frontend/types";
 
+function getMetric(key: (typeof SENSOR_GRAPH_METRICS)[number]["key"]) {
+  const metric = SENSOR_GRAPH_METRICS.find((candidate) => candidate.key === key);
+  expect(metric).toBeDefined();
+  return metric!;
+}
+
 const baseReading: SensorReading = {
   id: 1,
   deviceId: "esp32-c3-garden-01",
+  sensorType: "SHT31_SOIL_NODE",
   temperature: 29.3,
   temperatureC: 29.25,
   temperatureF: 84.65,
   temperatureSensorPin: 1,
+  temperatureSensorSdaPin: 6,
+  temperatureSensorSclPin: 7,
+  temperatureSensorI2cAddress: 68,
   temperatureSensorConnected: true,
   temperatureSensorCount: 1,
   humidity: 100,
@@ -20,6 +30,14 @@ const baseReading: SensorReading = {
   moistureSensorPercent: 100,
   moistureSensorCalibratedPercent: 100,
   moistureSensorPin: 0,
+  moistureSensorProbe1AoPin: 0,
+  moistureSensorProbe1RawAdc: 3550,
+  moistureSensorProbe1MoisturePercent: 0,
+  moistureSensorProbe1PowerPin: 21,
+  moistureSensorProbe2AoPin: 1,
+  moistureSensorProbe2RawAdc: 3496,
+  moistureSensorProbe2MoisturePercent: 0,
+  moistureSensorProbe2PowerPin: 20,
   moistureSensorReadingTimeMs: 81530,
   sensorTimestamp: 81,
   createdAt: "2026-09-12T00:00:00.000Z",
@@ -32,6 +50,9 @@ describe("sensor dashboard helpers", () => {
       "temperatureC",
       "temperatureF",
       "temperatureSensorPin",
+      "temperatureSensorSdaPin",
+      "temperatureSensorSclPin",
+      "temperatureSensorI2cAddress",
       "temperatureSensorConnected",
       "temperatureSensorCount",
       "humidity",
@@ -43,6 +64,14 @@ describe("sensor dashboard helpers", () => {
       "moistureSensorPercent",
       "moistureSensorCalibratedPercent",
       "moistureSensorPin",
+      "moistureSensorProbe1AoPin",
+      "moistureSensorProbe1RawAdc",
+      "moistureSensorProbe1MoisturePercent",
+      "moistureSensorProbe1PowerPin",
+      "moistureSensorProbe2AoPin",
+      "moistureSensorProbe2RawAdc",
+      "moistureSensorProbe2MoisturePercent",
+      "moistureSensorProbe2PowerPin",
       "moistureSensorReadingTimeMs",
     ]);
   });
@@ -58,7 +87,7 @@ describe("sensor dashboard helpers", () => {
           temperatureSensorConnected: false,
         },
       ],
-      SENSOR_GRAPH_METRICS[4],
+      getMetric("temperatureSensorConnected"),
     );
 
     expect(series.devices).toEqual(["esp32-c3-garden-01", "esp32-c3-garden-02"]);
@@ -92,7 +121,7 @@ describe("sensor dashboard helpers", () => {
           humidity: 42,
         },
       ],
-      SENSOR_GRAPH_METRICS[6],
+      getMetric("humidity"),
     );
 
     expect(series.data).toEqual([
@@ -115,7 +144,7 @@ describe("sensor dashboard helpers", () => {
           createdAt: "2026-09-12T01:01:05.000Z",
         },
       ],
-      SENSOR_GRAPH_METRICS[6],
+      getMetric("humidity"),
     );
 
     expect(series.data).toHaveLength(2);
