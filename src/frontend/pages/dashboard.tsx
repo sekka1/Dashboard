@@ -11,7 +11,11 @@ import {
 } from "recharts";
 import { StatCard } from "@/components/stat-card";
 import { apiClient } from "@/lib/api";
-import { buildSeriesByDevice, SENSOR_GRAPH_METRICS } from "@/lib/sensor-metrics";
+import {
+  buildSeriesByDevice,
+  getDisplayTemperatureF,
+  SENSOR_GRAPH_METRICS,
+} from "@/lib/sensor-metrics";
 import type { SensorReading } from "@/types";
 
 const TABLE_ROW_LIMIT = 20;
@@ -99,7 +103,11 @@ export function DashboardPage() {
   }, [chartRange, fetchChartReadings]);
 
   const latest = readings[0] ?? null;
-  const avgTemperature = average(readings.map((r) => r.temperature));
+  const avgTemperature = average(
+    readings
+      .map((r) => getDisplayTemperatureF(r))
+      .filter((temperature): temperature is number => temperature !== null),
+  );
   const deviceCount = new Set(readings.map((r) => r.deviceId)).size;
   const tableRows = readings.slice(0, TABLE_ROW_LIMIT);
   const chartRangeOption = CHART_RANGE_OPTIONS.find((option) => option.value === chartRange);
@@ -147,9 +155,9 @@ export function DashboardPage() {
           </label>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Latest Temperature" value={formatNumber(latest?.temperature ?? null, "°C")} />
+          <StatCard label="Latest Temperature" value={formatNumber(getDisplayTemperatureF(latest), "°F")} />
           <StatCard label="Latest Humidity" value={formatNumber(latest?.humidity ?? null, "%")} />
-          <StatCard label="Average Temperature" value={formatNumber(avgTemperature, "°C")} />
+          <StatCard label="Average Temperature" value={formatNumber(avgTemperature, "°F")} />
           <StatCard label="Sensors Reporting" value={deviceCount} />
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -237,7 +245,7 @@ export function DashboardPage() {
                 {tableRows.map((r) => (
                   <tr key={r.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-3">{r.deviceId}</td>
-                    <td className="px-4 py-3">{formatNumber(r.temperature, "°C")}</td>
+                    <td className="px-4 py-3">{formatNumber(getDisplayTemperatureF(r), "°F")}</td>
                     <td className="px-4 py-3">{formatNumber(r.humidity, "%")}</td>
                     <td className="px-4 py-3">
                       {r.batteryVoltage === null ? "—" : `${r.batteryVoltage.toFixed(2)}V`}

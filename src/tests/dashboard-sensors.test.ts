@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildSeriesByDevice, SENSOR_GRAPH_METRICS } from "../frontend/lib/sensor-metrics";
+import {
+  buildSeriesByDevice,
+  getDisplayTemperatureF,
+  SENSOR_GRAPH_METRICS,
+} from "../frontend/lib/sensor-metrics";
 import type { SensorReading } from "../frontend/types";
 
 function getMetric(key: (typeof SENSOR_GRAPH_METRICS)[number]["key"]) {
@@ -48,10 +52,9 @@ describe("sensor dashboard helpers", () => {
     expect(getMetric("temperature").unit).toBe("°F");
   });
 
-  it("tracks every incoming metric as a graphable series", () => {
+  it("tracks every dashboard-visible metric as a graphable series", () => {
     expect(SENSOR_GRAPH_METRICS.map((metric) => metric.key)).toEqual([
       "temperature",
-      "temperatureC",
       "temperatureF",
       "temperatureSensorPin",
       "temperatureSensorSdaPin",
@@ -78,6 +81,23 @@ describe("sensor dashboard helpers", () => {
       "moistureSensorProbe2PowerPin",
       "moistureSensorReadingTimeMs",
     ]);
+  });
+
+  it("formats dashboard temperatures in fahrenheit", () => {
+    expect(getDisplayTemperatureF(baseReading)).toBe(84.65);
+    expect(getDisplayTemperatureF({ ...baseReading, temperatureF: null })).toBeCloseTo(84.65);
+    expect(
+      getDisplayTemperatureF({
+        ...baseReading,
+        temperature: 23.4,
+        temperatureC: null,
+        temperatureF: null,
+      }),
+    ).toBeCloseTo(74.12);
+  });
+
+  it("does not expose celsius chart labels in the dashboard", () => {
+    expect(SENSOR_GRAPH_METRICS.some((metric) => metric.unit === "°C")).toBe(false);
   });
 
   it("normalizes boolean sensor metrics into chartable numeric values", () => {
