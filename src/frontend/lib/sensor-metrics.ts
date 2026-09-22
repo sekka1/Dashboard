@@ -43,7 +43,7 @@ interface SensorSeriesPoint extends Record<string, number> {
 const SENSOR_TIMESTAMP_GROUP_WINDOW_MS = 60_000;
 
 export const SENSOR_GRAPH_METRICS: SensorMetricDefinition[] = [
-  { key: "temperature", title: "Temperature over time", unit: "°C" },
+  { key: "temperature", title: "Temperature over time", unit: "°F" },
   { key: "temperatureC", title: "Temperature (C) over time", unit: "°C" },
   { key: "temperatureF", title: "Temperature (F) over time", unit: "°F" },
   { key: "temperatureSensorPin", title: "Temperature sensor pin over time" },

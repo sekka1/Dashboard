@@ -44,6 +44,10 @@ const baseReading: SensorReading = {
 };
 
 describe("sensor dashboard helpers", () => {
+  it("labels the main temperature chart in fahrenheit", () => {
+    expect(getMetric("temperature").unit).toBe("°F");
+  });
+
   it("tracks every incoming metric as a graphable series", () => {
     expect(SENSOR_GRAPH_METRICS.map((metric) => metric.key)).toEqual([
       "temperature",
