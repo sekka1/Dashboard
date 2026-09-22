@@ -14,10 +14,14 @@ export interface User {
 export interface SensorReading {
   id: number;
   deviceId: string;
+  sensorType: string | null;
   temperature: number;
   temperatureC: number | null;
   temperatureF: number | null;
   temperatureSensorPin: number | null;
+  temperatureSensorSdaPin: number | null;
+  temperatureSensorSclPin: number | null;
+  temperatureSensorI2cAddress: number | null;
   temperatureSensorConnected: boolean | null;
   temperatureSensorCount: number | null;
   humidity: number;
@@ -29,6 +33,14 @@ export interface SensorReading {
   moistureSensorPercent: number | null;
   moistureSensorCalibratedPercent: number | null;
   moistureSensorPin: number | null;
+  moistureSensorProbe1AoPin: number | null;
+  moistureSensorProbe1RawAdc: number | null;
+  moistureSensorProbe1MoisturePercent: number | null;
+  moistureSensorProbe1PowerPin: number | null;
+  moistureSensorProbe2AoPin: number | null;
+  moistureSensorProbe2RawAdc: number | null;
+  moistureSensorProbe2MoisturePercent: number | null;
+  moistureSensorProbe2PowerPin: number | null;
   moistureSensorReadingTimeMs: number | null;
   sensorTimestamp: number | null;
   createdAt: string;
