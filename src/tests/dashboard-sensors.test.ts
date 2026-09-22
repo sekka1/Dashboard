@@ -100,6 +100,34 @@ describe("sensor dashboard helpers", () => {
     ]);
   });
 
+  it("builds chart series for the new temperature metadata and per-probe moisture fields", () => {
+    const readings = [
+      baseReading,
+      {
+        ...baseReading,
+        id: 2,
+        deviceId: "esp32-c3-garden-02",
+        temperatureSensorSdaPin: 8,
+        moistureSensorProbe1RawAdc: 3601,
+      },
+    ];
+
+    expect(buildSeriesByDevice(readings, getMetric("temperatureSensorSdaPin")).data).toEqual([
+      {
+        time: new Date(baseReading.createdAt).getTime(),
+        "esp32-c3-garden-01": 6,
+        "esp32-c3-garden-02": 8,
+      },
+    ]);
+    expect(buildSeriesByDevice(readings, getMetric("moistureSensorProbe1RawAdc")).data).toEqual([
+      {
+        time: new Date(baseReading.createdAt).getTime(),
+        "esp32-c3-garden-01": 3550,
+        "esp32-c3-garden-02": 3601,
+      },
+    ]);
+  });
+
   it("aligns readings by shared sensor timestamps when devices report the same sample", () => {
     const firstReceivedAt = "2026-09-12T00:00:00.000Z";
     const secondReceivedAt = "2026-09-12T00:00:05.000Z";

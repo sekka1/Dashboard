@@ -97,7 +97,11 @@ export const dataIngestRoute = new Hono<{ Bindings: Env; Variables: AppVariables
       sensorType: body.sensor_type ?? null,
       temperature: temperature!,
       temperatureC:
-        body.temperature_c ?? body.temp_sensor_to_92_temperature_c ?? temperature ?? null,
+        body.temperature_c ??
+        body.temp_sensor_to_92_temperature_c ??
+        (body.temperature !== undefined
+          ? body.temperature
+          : body.temp_sensor_to_92_temperature ?? null),
       temperatureF: body.temperature_f ?? body.temp_sensor_to_92_temperature_f ?? null,
       temperatureSensorPin: body.temperature_sensor_pin ?? null,
       temperatureSensorSdaPin: body.temp_sensor_to_92_sda_pin ?? null,
