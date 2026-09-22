@@ -116,9 +116,23 @@ const AVERAGED_SENSOR_FIELDS = [
 ] as const satisfies readonly (keyof SensorReading)[];
 
 type AveragedSensorField = (typeof AVERAGED_SENSOR_FIELDS)[number];
+const ROUNDED_AVERAGED_SENSOR_FIELDS = [
+  "moistureSensorRawAdc",
+  "moistureSensorAirValue",
+  "moistureSensorWaterValue",
+  "moistureSensorProbe1RawAdc",
+  "moistureSensorProbe2RawAdc",
+  "moistureSensorReadingTimeMs",
+] as const satisfies readonly AveragedSensorField[];
+const ROUNDED_AVERAGED_SENSOR_FIELD_SET = new Set<AveragedSensorField>(ROUNDED_AVERAGED_SENSOR_FIELDS);
 
 function timestampMs(value: Date | string) {
   return new Date(value).getTime();
+}
+
+function normalizeAveragedValue(field: AveragedSensorField, value: number | null) {
+  if (value === null) return null;
+  return ROUNDED_AVERAGED_SENSOR_FIELD_SET.has(field) ? Math.round(value) : value;
 }
 
 interface RawChartReadingRow {
@@ -211,12 +225,22 @@ async function fetchChartReadings(db: Env["DB"], range: SensorChartRange): Promi
     .bind(bucketSeconds, bucketSeconds, bucketSeconds, sinceSeconds)
     .all<RawChartReadingRow>();
 
-  return (results.results ?? []).map(({ bucketCreatedAt, temperatureSensorConnected, ...row }) => ({
-    ...row,
-    temperatureSensorConnected: temperatureSensorConnected === null ? null : Boolean(temperatureSensorConnected),
-    sensorTimestamp: null,
-    createdAt: new Date(bucketCreatedAt * 1_000),
-  }));
+  return (results.results ?? []).map(({ bucketCreatedAt, temperatureSensorConnected, ...row }) => {
+    const reading: SensorReading = {
+      ...row,
+      temperatureSensorConnected:
+        temperatureSensorConnected === null ? null : Boolean(temperatureSensorConnected),
+      sensorTimestamp: null,
+      createdAt: new Date(bucketCreatedAt * 1_000),
+    };
+    const readingMetrics = reading as Record<AveragedSensorField, number | null>;
+
+    for (const field of AVERAGED_SENSOR_FIELDS) {
+      readingMetrics[field] = normalizeAveragedValue(field, readingMetrics[field]);
+    }
+
+    return reading;
+  });
 }
 
 export function summarizeReadingsForChartRange(
@@ -272,7 +296,10 @@ export function summarizeReadingsForChartRange(
 
       for (const field of AVERAGED_SENSOR_FIELDS) {
         const count = counts[field] ?? 0;
-        summaryMetrics[field] = count === 0 ? latestReading[field] : sums[field]! / count;
+        summaryMetrics[field] = normalizeAveragedValue(
+          field,
+          count === 0 ? latestReading[field] : sums[field]! / count,
+        );
       }
 
       return summary;
