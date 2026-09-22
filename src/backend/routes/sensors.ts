@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { desc } from "drizzle-orm";
+import { desc, gte } from "drizzle-orm";
 import { getDb } from "../../db";
-import { sensorReadings, type NewSensorReading } from "../../db/schema";
+import { sensorReadings, type NewSensorReading, type SensorReading } from "../../db/schema";
 import { requireAuth, type AppVariables } from "../middleware/rbac";
 import type { Env } from "../env";
 
@@ -79,6 +79,108 @@ const sensorReadingSchema = z.object({
 });
 
 type SensorReadingPayload = z.infer<typeof sensorReadingSchema>;
+
+const chartRangeSchema = z.object({
+  range: z.enum(["1h", "12h", "24h", "7d"]).catch("24h"),
+});
+
+export type SensorChartRange = z.infer<typeof chartRangeSchema>["range"];
+
+export const SENSOR_CHART_RANGE_CONFIG: Record<
+  SensorChartRange,
+  { bucketMs: number; windowMs: number }
+> = {
+  "1h": { bucketMs: 60_000, windowMs: 60 * 60 * 1_000 },
+  "12h": { bucketMs: 10 * 60_000, windowMs: 12 * 60 * 60 * 1_000 },
+  "24h": { bucketMs: 15 * 60_000, windowMs: 24 * 60 * 60 * 1_000 },
+  "7d": { bucketMs: 60 * 60_000, windowMs: 7 * 24 * 60 * 60 * 1_000 },
+};
+
+const AVERAGED_SENSOR_FIELDS = [
+  "temperature",
+  "temperatureC",
+  "temperatureF",
+  "humidity",
+  "batteryVoltage",
+  "moistureSensorRawAdc",
+  "moistureSensorAirValue",
+  "moistureSensorWaterValue",
+  "moistureSensorMoisturePercent",
+  "moistureSensorPercent",
+  "moistureSensorCalibratedPercent",
+  "moistureSensorProbe1RawAdc",
+  "moistureSensorProbe1MoisturePercent",
+  "moistureSensorProbe2RawAdc",
+  "moistureSensorProbe2MoisturePercent",
+  "moistureSensorReadingTimeMs",
+] as const satisfies readonly (keyof SensorReading)[];
+
+type AveragedSensorField = (typeof AVERAGED_SENSOR_FIELDS)[number];
+
+function timestampMs(value: Date | string) {
+  return new Date(value).getTime();
+}
+
+export function summarizeReadingsForChartRange(
+  readings: SensorReading[],
+  range: SensorChartRange,
+) {
+  const { bucketMs } = SENSOR_CHART_RANGE_CONFIG[range];
+  const buckets = new Map<
+    string,
+    {
+      bucketTime: number;
+      latestReading: SensorReading;
+      sums: Partial<Record<AveragedSensorField, number>>;
+      counts: Partial<Record<AveragedSensorField, number>>;
+    }
+  >();
+
+  const sortedReadings = [...readings].sort((a, b) => timestampMs(b.createdAt) - timestampMs(a.createdAt));
+
+  for (const reading of sortedReadings) {
+    const createdAtMs = timestampMs(reading.createdAt);
+    const bucketTime = Math.floor(createdAtMs / bucketMs) * bucketMs;
+    const bucketKey = `${reading.deviceId}:${bucketTime}`;
+    const bucket = buckets.get(bucketKey) ?? {
+      bucketTime,
+      latestReading: reading,
+      sums: {},
+      counts: {},
+    };
+
+    if (createdAtMs > timestampMs(bucket.latestReading.createdAt)) {
+      bucket.latestReading = reading;
+    }
+
+    for (const field of AVERAGED_SENSOR_FIELDS) {
+      const value = reading[field];
+      if (typeof value !== "number") continue;
+      bucket.sums[field] = (bucket.sums[field] ?? 0) + value;
+      bucket.counts[field] = (bucket.counts[field] ?? 0) + 1;
+    }
+
+    buckets.set(bucketKey, bucket);
+  }
+
+  return Array.from(buckets.values())
+    .map(({ bucketTime, latestReading, sums, counts }) => {
+      const summary: SensorReading = {
+        ...latestReading,
+        createdAt: new Date(bucketTime),
+        sensorTimestamp: null,
+      };
+      const summaryMetrics = summary as Record<AveragedSensorField, number | null>;
+
+      for (const field of AVERAGED_SENSOR_FIELDS) {
+        const count = counts[field] ?? 0;
+        summaryMetrics[field] = count === 0 ? latestReading[field] : sums[field]! / count;
+      }
+
+      return summary;
+    })
+    .sort((a, b) => timestampMs(a.createdAt) - timestampMs(b.createdAt));
+}
 
 function firstDefined<T>(...values: (T | undefined)[]) {
   return values.find((value): value is T => value !== undefined);
@@ -188,4 +290,17 @@ export const sensorsRoute = new Hono<{ Bindings: Env; Variables: AppVariables }>
       .orderBy(desc(sensorReadings.createdAt))
       .limit(limit);
     return c.json({ readings: rows });
+  })
+  .get("/chart-readings", zValidator("query", chartRangeSchema), async (c) => {
+    const db = getDb(c.env.DB);
+    const { range } = c.req.valid("query");
+    const { windowMs } = SENSOR_CHART_RANGE_CONFIG[range];
+    const since = new Date(Date.now() - windowMs);
+    const rows = await db
+      .select()
+      .from(sensorReadings)
+      .where(gte(sensorReadings.createdAt, since))
+      .orderBy(desc(sensorReadings.createdAt));
+
+    return c.json({ readings: summarizeReadingsForChartRange(rows, range) });
   });

@@ -1,9 +1,64 @@
 import { SELF, env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import {
+  summarizeReadingsForChartRange,
+  type SensorChartRange,
+} from "../backend/routes/sensors";
+import type { SensorReading } from "../db/schema";
+
+function makeStoredReading(
+  overrides: Partial<SensorReading> = {},
+  createdAt = "2026-09-12T12:00:00.000Z",
+): SensorReading {
+  return {
+    id: 1,
+    deviceId: "esp32-c3-garden-01",
+    sensorType: "SHT31_SOIL_NODE",
+    temperature: 24,
+    temperatureC: 24,
+    temperatureF: 75.2,
+    temperatureSensorPin: 1,
+    temperatureSensorSdaPin: 6,
+    temperatureSensorSclPin: 7,
+    temperatureSensorI2cAddress: 68,
+    temperatureSensorConnected: true,
+    temperatureSensorCount: 1,
+    humidity: 50,
+    batteryVoltage: 3.8,
+    moistureSensorRawAdc: 900,
+    moistureSensorAirValue: 4000,
+    moistureSensorWaterValue: 1500,
+    moistureSensorMoisturePercent: 40,
+    moistureSensorPercent: 40,
+    moistureSensorCalibratedPercent: 41,
+    moistureSensorPin: 0,
+    moistureSensorProbe1AoPin: 0,
+    moistureSensorProbe1RawAdc: 1000,
+    moistureSensorProbe1MoisturePercent: 32,
+    moistureSensorProbe1PowerPin: 21,
+    moistureSensorProbe2AoPin: 1,
+    moistureSensorProbe2RawAdc: 1100,
+    moistureSensorProbe2MoisturePercent: 36,
+    moistureSensorProbe2PowerPin: 20,
+    moistureSensorReadingTimeMs: 700,
+    sensorTimestamp: 10,
+    createdAt: new Date(createdAt),
+    ...overrides,
+  };
+}
+
+function summarize(range: SensorChartRange, readings: SensorReading[]) {
+  return summarizeReadingsForChartRange(readings, range);
+}
 
 describe("Sensor data ingestion", () => {
   it("rejects unauthenticated requests to /api/sensors/readings", async () => {
     const res = await SELF.fetch("https://example.com/api/sensors/readings");
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects unauthenticated requests to /api/sensors/chart-readings", async () => {
+    const res = await SELF.fetch("https://example.com/api/sensors/chart-readings?range=7d");
     expect(res.status).toBe(401);
   });
 
@@ -326,5 +381,58 @@ describe("Sensor data ingestion", () => {
       temperature_sensor_sda_pin: 4,
       moisture_sensor_raw_adc: 1111,
     });
+  });
+
+  it("summarizes dense chart readings into averaged time buckets", () => {
+    const summary = summarize("1h", [
+      makeStoredReading(
+        {
+          id: 1,
+          temperature: 20,
+          humidity: 40,
+          batteryVoltage: 3.7,
+          temperatureSensorConnected: false,
+        },
+        "2026-09-12T12:00:05.000Z",
+      ),
+      makeStoredReading(
+        {
+          id: 2,
+          temperature: 26,
+          humidity: 52,
+          batteryVoltage: 3.9,
+          temperatureSensorConnected: true,
+        },
+        "2026-09-12T12:00:45.000Z",
+      ),
+    ]);
+
+    expect(summary).toHaveLength(1);
+    expect(summary[0]).toMatchObject({
+      id: 2,
+      deviceId: "esp32-c3-garden-01",
+      temperature: 23,
+      humidity: 46,
+      batteryVoltage: 3.8,
+      temperatureSensorConnected: true,
+      sensorTimestamp: null,
+      createdAt: new Date("2026-09-12T12:00:00.000Z"),
+    });
+  });
+
+  it("keeps devices separate while using coarser buckets for longer ranges", () => {
+    const summary = summarize("7d", [
+      makeStoredReading({ id: 1, deviceId: "esp32-c3-garden-01", temperature: 18 }, "2026-09-12T12:10:00.000Z"),
+      makeStoredReading({ id: 2, deviceId: "esp32-c3-garden-01", temperature: 22 }, "2026-09-12T12:40:00.000Z"),
+      makeStoredReading({ id: 3, deviceId: "esp32-c3-garden-02", temperature: 30 }, "2026-09-12T12:25:00.000Z"),
+      makeStoredReading({ id: 4, deviceId: "esp32-c3-garden-01", temperature: 28 }, "2026-09-12T13:05:00.000Z"),
+    ]);
+
+    expect(summary).toHaveLength(3);
+    expect(summary.map((reading) => [reading.deviceId, reading.temperature, reading.createdAt])).toEqual([
+      ["esp32-c3-garden-01", 20, new Date("2026-09-12T12:00:00.000Z")],
+      ["esp32-c3-garden-02", 30, new Date("2026-09-12T12:00:00.000Z")],
+      ["esp32-c3-garden-01", 28, new Date("2026-09-12T13:00:00.000Z")],
+    ]);
   });
 });
