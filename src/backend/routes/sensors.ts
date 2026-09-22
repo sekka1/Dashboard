@@ -54,8 +54,7 @@ const sensorReadingSchema = z.object({
   // the worker always records the time the reading was received.
   timestamp: z.number().int().optional(),
 }).superRefine((body, ctx) => {
-  const temperature =
-    body.temperature ?? body.temp_sensor_to_92_temperature ?? body.temp_sensor_to_92_temperature_c;
+  const temperature = body.temperature ?? body.temp_sensor_to_92_temperature;
   if (temperature === undefined) {
     ctx.addIssue({
       code: z.ZodIssueCode.invalid_type,
@@ -89,11 +88,9 @@ export const dataIngestRoute = new Hono<{ Bindings: Env; Variables: AppVariables
     if (!token || token !== c.env.SENSOR_API_TOKEN) {
       return c.json({ error: "Unauthorized" }, 401);
     }
-
     const body = c.req.valid("json");
     const db = getDb(c.env.DB);
-    const temperature =
-      body.temperature ?? body.temp_sensor_to_92_temperature ?? body.temp_sensor_to_92_temperature_c;
+    const temperature = body.temperature ?? body.temp_sensor_to_92_temperature;
     const humidity = body.humidity ?? body.temp_sensor_to_92_humidity;
     const reading = {
       deviceId: body.device_id,
