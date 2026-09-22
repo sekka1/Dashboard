@@ -139,7 +139,7 @@ interface RawChartReadingRow {
   id: number;
   deviceId: string;
   sensorType: string | null;
-  temperature: number;
+  temperature: number | null;
   temperatureC: number | null;
   temperatureF: number | null;
   temperatureSensorPin: number | null;
@@ -148,7 +148,7 @@ interface RawChartReadingRow {
   temperatureSensorI2cAddress: number | null;
   temperatureSensorConnected: number | null;
   temperatureSensorCount: number | null;
-  humidity: number;
+  humidity: number | null;
   batteryVoltage: number | null;
   moistureSensorRawAdc: number | null;
   moistureSensorAirValue: number | null;
@@ -225,22 +225,30 @@ async function fetchChartReadings(db: Env["DB"], range: SensorChartRange): Promi
     .bind(bucketSeconds, bucketSeconds, bucketSeconds, sinceSeconds)
     .all<RawChartReadingRow>();
 
-  return (results.results ?? []).map(({ bucketCreatedAt, temperatureSensorConnected, ...row }) => {
-    const reading: SensorReading = {
-      ...row,
-      temperatureSensorConnected:
-        temperatureSensorConnected === null ? null : Boolean(temperatureSensorConnected),
-      sensorTimestamp: null,
-      createdAt: new Date(bucketCreatedAt * 1_000),
-    };
-    const readingMetrics = reading as Record<AveragedSensorField, number | null>;
+  return (results.results ?? []).flatMap(
+    ({ bucketCreatedAt, temperatureSensorConnected, temperature, humidity, ...row }) => {
+      if (temperature === null || humidity === null) {
+        return [];
+      }
 
-    for (const field of AVERAGED_SENSOR_FIELDS) {
-      readingMetrics[field] = normalizeAveragedValue(field, readingMetrics[field]);
-    }
+      const reading: SensorReading = {
+        ...row,
+        temperature,
+        humidity,
+        temperatureSensorConnected:
+          temperatureSensorConnected === null ? null : Boolean(temperatureSensorConnected),
+        sensorTimestamp: null,
+        createdAt: new Date(bucketCreatedAt * 1_000),
+      };
+      const readingMetrics = reading as Record<AveragedSensorField, number | null>;
 
-    return reading;
-  });
+      for (const field of AVERAGED_SENSOR_FIELDS) {
+        readingMetrics[field] = normalizeAveragedValue(field, readingMetrics[field]);
+      }
+
+      return reading;
+    },
+  );
 }
 
 export function summarizeReadingsForChartRange(
