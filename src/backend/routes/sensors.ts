@@ -161,19 +161,30 @@ async function fetchChartReadings(db: Env["DB"], range: SensorChartRange): Promi
   const sinceSeconds = Math.floor((Date.now() - windowMs) / 1_000);
   const results = await db
     .prepare(
-      `SELECT
-        MAX(id) AS id,
+      `WITH bucketed AS (
+        SELECT
+          *,
+          CAST(created_at / ? AS INTEGER) * ? AS bucket_created_at,
+          ROW_NUMBER() OVER (
+            PARTITION BY device_id, CAST(created_at / ? AS INTEGER)
+            ORDER BY created_at DESC, id DESC
+          ) AS row_rank
+        FROM sensor_readings
+        WHERE created_at >= ?
+      )
+      SELECT
+        MAX(CASE WHEN row_rank = 1 THEN id END) AS id,
         device_id AS deviceId,
-        MAX(sensor_type) AS sensorType,
+        MAX(CASE WHEN row_rank = 1 THEN sensor_type END) AS sensorType,
         AVG(temperature) AS temperature,
         AVG(temperature_c) AS temperatureC,
         AVG(temperature_f) AS temperatureF,
-        MAX(temperature_sensor_pin) AS temperatureSensorPin,
-        MAX(temperature_sensor_sda_pin) AS temperatureSensorSdaPin,
-        MAX(temperature_sensor_scl_pin) AS temperatureSensorSclPin,
-        MAX(temperature_sensor_i2c_address) AS temperatureSensorI2cAddress,
-        MAX(temperature_sensor_connected) AS temperatureSensorConnected,
-        MAX(temperature_sensor_count) AS temperatureSensorCount,
+        MAX(CASE WHEN row_rank = 1 THEN temperature_sensor_pin END) AS temperatureSensorPin,
+        MAX(CASE WHEN row_rank = 1 THEN temperature_sensor_sda_pin END) AS temperatureSensorSdaPin,
+        MAX(CASE WHEN row_rank = 1 THEN temperature_sensor_scl_pin END) AS temperatureSensorSclPin,
+        MAX(CASE WHEN row_rank = 1 THEN temperature_sensor_i2c_address END) AS temperatureSensorI2cAddress,
+        MAX(CASE WHEN row_rank = 1 THEN temperature_sensor_connected END) AS temperatureSensorConnected,
+        MAX(CASE WHEN row_rank = 1 THEN temperature_sensor_count END) AS temperatureSensorCount,
         AVG(humidity) AS humidity,
         AVG(battery_voltage) AS batteryVoltage,
         AVG(moisture_sensor_raw_adc) AS moistureSensorRawAdc,
@@ -182,23 +193,22 @@ async function fetchChartReadings(db: Env["DB"], range: SensorChartRange): Promi
         AVG(moisture_sensor_moisture_percent) AS moistureSensorMoisturePercent,
         AVG(moisture_sensor_percent) AS moistureSensorPercent,
         AVG(moisture_sensor_calibrated_percent) AS moistureSensorCalibratedPercent,
-        MAX(moisture_sensor_pin) AS moistureSensorPin,
-        MAX(moisture_sensor_probe_1_ao_pin) AS moistureSensorProbe1AoPin,
+        MAX(CASE WHEN row_rank = 1 THEN moisture_sensor_pin END) AS moistureSensorPin,
+        MAX(CASE WHEN row_rank = 1 THEN moisture_sensor_probe_1_ao_pin END) AS moistureSensorProbe1AoPin,
         AVG(moisture_sensor_probe_1_raw_adc) AS moistureSensorProbe1RawAdc,
         AVG(moisture_sensor_probe_1_moisture_percent) AS moistureSensorProbe1MoisturePercent,
-        MAX(moisture_sensor_probe_1_power_pin) AS moistureSensorProbe1PowerPin,
-        MAX(moisture_sensor_probe_2_ao_pin) AS moistureSensorProbe2AoPin,
+        MAX(CASE WHEN row_rank = 1 THEN moisture_sensor_probe_1_power_pin END) AS moistureSensorProbe1PowerPin,
+        MAX(CASE WHEN row_rank = 1 THEN moisture_sensor_probe_2_ao_pin END) AS moistureSensorProbe2AoPin,
         AVG(moisture_sensor_probe_2_raw_adc) AS moistureSensorProbe2RawAdc,
         AVG(moisture_sensor_probe_2_moisture_percent) AS moistureSensorProbe2MoisturePercent,
-        MAX(moisture_sensor_probe_2_power_pin) AS moistureSensorProbe2PowerPin,
+        MAX(CASE WHEN row_rank = 1 THEN moisture_sensor_probe_2_power_pin END) AS moistureSensorProbe2PowerPin,
         AVG(moisture_sensor_reading_time_ms) AS moistureSensorReadingTimeMs,
-        CAST(created_at / ? AS INTEGER) * ? AS bucketCreatedAt
-      FROM sensor_readings
-      WHERE created_at >= ?
-      GROUP BY device_id, CAST(created_at / ? AS INTEGER)
+        bucket_created_at AS bucketCreatedAt
+      FROM bucketed
+      GROUP BY device_id, bucket_created_at
       ORDER BY bucketCreatedAt ASC, device_id ASC`,
     )
-    .bind(bucketSeconds, bucketSeconds, sinceSeconds, bucketSeconds)
+    .bind(bucketSeconds, bucketSeconds, bucketSeconds, sinceSeconds)
     .all<RawChartReadingRow>();
 
   return (results.results ?? []).map(({ bucketCreatedAt, temperatureSensorConnected, ...row }) => ({

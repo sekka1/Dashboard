@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -55,6 +55,7 @@ export function DashboardPage() {
   const [chartRange, setChartRange] = useState<ChartRange>("24h");
   const [loading, setLoading] = useState(true);
   const [loadingCharts, setLoadingCharts] = useState(true);
+  const chartRequestIdRef = useRef(0);
 
   const fetchReadings = useCallback(async () => {
     setLoading(true);
@@ -67,8 +68,11 @@ export function DashboardPage() {
   }, []);
 
   const fetchChartReadings = useCallback(async (range: ChartRange) => {
+    const requestId = chartRequestIdRef.current + 1;
+    chartRequestIdRef.current = requestId;
     setLoadingCharts(true);
     const res = await apiClient.api.sensors["chart-readings"].$get({ query: { range } });
+    if (chartRequestIdRef.current !== requestId) return;
     if (res.ok) {
       const data = await res.json();
       setChartReadings(data.readings);
