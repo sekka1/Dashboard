@@ -42,9 +42,21 @@ interface SensorSeriesPoint extends Record<string, number> {
 
 const SENSOR_TIMESTAMP_GROUP_WINDOW_MS = 60_000;
 
+export function toFahrenheit(celsius: number) {
+  return (celsius * 9.0) / 5.0 + 32.0;
+}
+
+export function getDisplayTemperatureF(
+  reading: Pick<SensorReading, "temperature" | "temperatureC" | "temperatureF"> | null | undefined,
+) {
+  if (!reading) return null;
+  if (typeof reading.temperatureF === "number") return reading.temperatureF;
+  if (typeof reading.temperatureC === "number") return toFahrenheit(reading.temperatureC);
+  return typeof reading.temperature === "number" ? toFahrenheit(reading.temperature) : null;
+}
+
 export const SENSOR_GRAPH_METRICS: SensorMetricDefinition[] = [
   { key: "temperature", title: "Temperature over time", unit: "°F" },
-  { key: "temperatureC", title: "Temperature (C) over time", unit: "°C" },
   { key: "temperatureF", title: "Temperature (F) over time", unit: "°F" },
   { key: "temperatureSensorPin", title: "Temperature sensor pin over time" },
   { key: "temperatureSensorSdaPin", title: "Temperature sensor SDA pin over time" },
