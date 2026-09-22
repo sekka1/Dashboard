@@ -71,15 +71,23 @@ export function DashboardPage() {
     const requestId = chartRequestIdRef.current + 1;
     chartRequestIdRef.current = requestId;
     setLoadingCharts(true);
-    const res = await apiClient.api.sensors["chart-readings"].$get({ query: { range } });
-    if (chartRequestIdRef.current !== requestId) return;
-    if (res.ok) {
-      const data = await res.json();
-      setChartReadings(data.readings);
-    } else {
+    try {
+      const res = await apiClient.api.sensors["chart-readings"].$get({ query: { range } });
+      if (chartRequestIdRef.current !== requestId) return;
+      if (res.ok) {
+        const data = await res.json();
+        setChartReadings(data.readings);
+      } else {
+        setChartReadings([]);
+      }
+    } catch {
+      if (chartRequestIdRef.current !== requestId) return;
       setChartReadings([]);
+    } finally {
+      if (chartRequestIdRef.current === requestId) {
+        setLoadingCharts(false);
+      }
     }
-    setLoadingCharts(false);
   }, []);
 
   useEffect(() => {
