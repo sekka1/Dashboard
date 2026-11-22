@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { StatCard } from "@/components/stat-card";
 import { apiClient } from "@/lib/api";
+import { useDarkMode } from "@/lib/use-dark-mode";
 import {
   buildSeriesByDevice,
   getDisplayTemperatureF,
@@ -19,6 +20,8 @@ import {
 import type { SensorReading } from "@/types";
 
 const TABLE_ROW_LIMIT = 20;
+const CHART_AXIS_LIGHT = "#64748b";
+const CHART_AXIS_DARK = "#94a3b8";
 const CHART_COLORS = ["#047857", "#2563eb", "#d97706", "#db2777", "#7c3aed", "#0891b2"];
 const CHART_RANGE_OPTIONS = [
   { value: "1h", label: "Last hour", summary: "1-minute summaries" },
@@ -60,6 +63,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadingCharts, setLoadingCharts] = useState(true);
   const chartRequestIdRef = useRef(0);
+  const { isDark, toggle: toggleDark } = useDarkMode();
 
   const fetchReadings = useCallback(async () => {
     setLoading(true);
@@ -102,6 +106,7 @@ export function DashboardPage() {
     fetchChartReadings(chartRange);
   }, [chartRange, fetchChartReadings]);
 
+  const axisColor = isDark ? CHART_AXIS_DARK : CHART_AXIS_LIGHT;
   const latest = readings[0] ?? null;
   const avgTemperature = average(
     readings
@@ -120,29 +125,37 @@ export function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-emerald-50">
-      <div className="bg-emerald-700 py-8 text-center text-white shadow">
+    <div className="min-h-screen bg-emerald-50 dark:bg-slate-900">
+      <div className="relative bg-emerald-700 py-8 text-center text-white shadow dark:bg-emerald-900">
+        <button
+          type="button"
+          onClick={toggleDark}
+          aria-pressed={isDark}
+          className="absolute right-4 top-4 rounded-md border border-emerald-300/50 bg-emerald-800/40 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800/70 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+        >
+          {isDark ? "☀️ Light mode" : "🌙 Dark mode"}
+        </button>
         <h1 className="text-3xl font-bold tracking-wide">🌱 Garden</h1>
         <p className="mt-1 text-sm text-emerald-100">Live readings from the garden sensors</p>
       </div>
       <div className="mx-auto max-w-6xl space-y-6 p-6">
-        <div className="flex flex-col gap-3 rounded-lg border border-emerald-100 bg-white/90 p-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-emerald-100 bg-white/90 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700 dark:text-emerald-400">
               Chart window
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-900">
+            <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
               {chartRangeOption?.label ?? "Last 24 hours"}
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
               {chartRangeOption?.summary ?? "15-minute summaries"} keep the charts readable on any
               screen.
             </p>
           </div>
-          <label className="flex flex-col gap-1 text-sm font-medium text-slate-600">
+          <label className="flex flex-col gap-1 text-sm font-medium text-slate-600 dark:text-slate-300">
             Time range
             <select
-              className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
               value={chartRange}
               onChange={(e) => setChartRange(e.target.value as ChartRange)}
             >
@@ -165,26 +178,28 @@ export function DashboardPage() {
             const series = metricSeries[metric.key];
 
             return (
-              <div key={metric.key} className="rounded-lg bg-white p-4 shadow">
-                <h2 className="mb-2 text-sm font-medium text-slate-500">
+              <div key={metric.key} className="rounded-lg bg-white p-4 shadow dark:bg-slate-800">
+                <h2 className="mb-2 text-sm font-medium text-slate-500 dark:text-slate-400 dark:text-slate-500">
                   {metric.title}
                   {metric.unit ? ` (${metric.unit})` : ""}
                 </h2>
                 {loadingCharts ? (
-                  <p className="py-10 text-center text-slate-400">Loading chart…</p>
+                  <p className="py-10 text-center text-slate-400 dark:text-slate-500">Loading chart…</p>
                 ) : chartReadings.length === 0 || series.data.length === 0 ? (
-                  <p className="py-10 text-center text-slate-400">No sensor readings yet.</p>
+                  <p className="py-10 text-center text-slate-400 dark:text-slate-500">No sensor readings yet.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={series.data}>
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#334155" : "#e2e8f0"} />
                       <XAxis
+                        stroke={axisColor}
                         dataKey="time"
                         type="number"
                         domain={["dataMin", "dataMax"]}
                         tickFormatter={(t) => formatChartTime(t, chartRange)}
                       />
                       <YAxis
+                        stroke={axisColor}
                         domain={metric.boolean ? [0, 1] : undefined}
                         ticks={metric.boolean ? [0, 1] : undefined}
                         label={
@@ -198,6 +213,11 @@ export function DashboardPage() {
                         }
                       />
                       <Tooltip
+                        contentStyle={
+                          isDark
+                            ? { backgroundColor: "#1e293b", border: "1px solid #475569", color: "#f1f5f9" }
+                            : undefined
+                        }
                         labelFormatter={(t) => new Date(t as number).toLocaleString()}
                         formatter={(value) => {
                           if (metric.boolean) return value === 1 ? "Yes" : "No";
@@ -205,7 +225,7 @@ export function DashboardPage() {
                           return value;
                         }}
                       />
-                      <Legend />
+                      <Legend wrapperStyle={isDark ? { color: "#e2e8f0" } : undefined} />
                       {series.devices.map((deviceId, i) => (
                         <Line
                           key={deviceId}
@@ -224,15 +244,15 @@ export function DashboardPage() {
             );
           })}
         </div>
-        <div className="rounded-lg bg-white shadow">
-          <h2 className="px-4 pt-4 text-sm font-medium text-slate-500">Last {TABLE_ROW_LIMIT} readings</h2>
+        <div className="rounded-lg bg-white shadow dark:bg-slate-800">
+          <h2 className="px-4 pt-4 text-sm font-medium text-slate-500 dark:text-slate-400 dark:text-slate-500">Last {TABLE_ROW_LIMIT} readings</h2>
           {loading ? (
-            <p className="p-6 text-slate-400">Loading…</p>
+            <p className="p-6 text-slate-400 dark:text-slate-500">Loading…</p>
           ) : tableRows.length === 0 ? (
-            <p className="p-6 text-slate-400">No sensor readings yet.</p>
+            <p className="p-6 text-slate-400 dark:text-slate-500">No sensor readings yet.</p>
           ) : (
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-slate-500">
+              <thead className="border-b border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 <tr>
                   <th className="px-4 py-3 font-medium">Device</th>
                   <th className="px-4 py-3 font-medium">Temperature</th>
@@ -241,9 +261,9 @@ export function DashboardPage() {
                   <th className="px-4 py-3 font-medium">Recorded At</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="dark:text-slate-200">
                 {tableRows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={r.id} className="border-b border-slate-100 last:border-0 dark:border-slate-700">
                     <td className="px-4 py-3">{r.deviceId}</td>
                     <td className="px-4 py-3">{formatNumber(getDisplayTemperatureF(r), "°F")}</td>
                     <td className="px-4 py-3">{formatNumber(r.humidity, "%")}</td>
